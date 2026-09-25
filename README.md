@@ -1,0 +1,359 @@
+<p align="center">
+  <img src="www/assets/brand/logo.png" alt="iElectro" width="88">
+</p>
+
+<h1 align="center">iElectro</h1>
+
+<p align="center">
+  <strong>Privacy-first apps on dedicated subdomains, powered by Nesh.</strong><br>
+  One identity. Separate products. Shared PHP framework.
+</p>
+
+<p align="center">
+  <a href="https://www.ielectro.com">www</a> ·
+  <a href="https://account.ielectro.com">account</a> ·
+  <a href="https://dyscover.ielectro.com">dyscover</a> ·
+  <a href="https://admin.ielectro.com">admin</a>
+</p>
+
+iElectro is a small multi-app platform: a public company site, a single sign-on account, a social/publishing product (Dyscover), and a staff backoffice. Each app is its own Apache vhost. They share a `session_token` cookie on `.ielectro.com` and boot through **Nesh** (`nesh/src`), a PHP 8 framework that maps URLs to pages and `/api/{service}` classes.
+
+| App | Host | Database |
+| --- | --- | --- |
+| **Www** | [www.ielectro.com](https://www.ielectro.com) | none (reads Admin APIs) |
+| **Account** | [account.ielectro.com](https://account.ielectro.com) | `ielectro_account` |
+| **Dyscover** | [dyscover.ielectro.com](https://dyscover.ielectro.com) | `ielectro_dyscover` |
+| **Admin** | [admin.ielectro.com](https://admin.ielectro.com) | `ielectro_admin` |
+
+- [Architecture](#architecture)
+- [Identity & sessions](#identity--sessions)
+- [Data model](#data-model)
+- [Nesh](#nesh)
+- [HTTP API](#http-api)
+- [Repository layout](#repository-layout)
+- [Setup](#setup)
+- [Troubleshooting](#troubleshooting)
+- [Product tour](#product-tour)
+
+---
+
+## Architecture
+
+Four vhosts, one framework, three MySQL schemas. Uploads stay under each app’s `assets/`. Optional LLM calls go through `Nesh\AiClient`.
+
+```mermaid
+flowchart TB
+  subgraph Browser
+    U[User]
+  end
+
+  U --> WWW[www.ielectro.com]
+  U --> ACC[account.ielectro.com]
+  U --> DYS[dyscover.ielectro.com]
+  U --> ADM[admin.ielectro.com]
+
+  WWW --> Nesh
+  ACC --> Nesh
+  DYS --> Nesh
+  ADM --> Nesh
+
+  subgraph Nesh["Nesh (nesh/src)"]
+    App[App::run]
+    Pages[Pages]
+    Api[Api]
+    Id[Identity]
+    App --> Pages
+    App --> Api
+    Api --> Id
+  end
+
+  ACC --> DA[(ielectro_account)]
+  DYS --> DD[(ielectro_dyscover)]
+  ADM --> DM[(ielectro_admin)]
+  WWW -.->|public APIs: news, careers, team, views| ADM
+  Id --> DA
+```
+
+**Front controller.** Each app `.htaccess` sends unknown paths to `index.php` and forbids `/database` and `/storage`. Path segment `0` is either `api` or a page name.
+
+**SSO.** `Nesh\Identity` resolves `session_token` against `ielectro_account.account_sessions`.
+
+```mermaid
+flowchart LR
+  Request --> Autoload[autoload.php]
+  Autoload --> Start[Request::start]
+  Start --> Apps[App instances]
+  Apps --> Run[App::run]
+  Run --> Backup[Backup::daily]
+  Backup --> Route{api/?}
+  Route -->|yes| Handle[Api::handle]
+  Route -->|no| Render[Pages::render]
+```
+
+---
+
+## Identity & sessions
+
+Identity is owned by Account. Other apps only read it.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant A as Account
+  participant DB as ielectro_account
+  participant D as Dyscover / Admin / Www
+
+  B->>A: POST /api/sessions (or Google OAuth)
+  A->>DB: store SHA-256(session token)
+  A-->>B: Set-Cookie session_token (.ielectro.com, HttpOnly, Secure, SameSite=Lax)
+
+  B->>D: GET or POST /api/…
+  D->>DB: Identity lookup (unrevoked, unexpired)
+  DB-->>D: account_id, username
+  D-->>B: JSON or HTML
+```
+
+- Cookie domain: `COOKIE_DOMAIN` (typically `.ielectro.com`).
+- `Identity::required()` → JSON 401 on protected APIs.
+- Dyscover profiles: `dyscover_users.account_id` with role `user` / `moderator` and status `active` / `suspended` / `banned`.
+- Admin HTML and staff APIs: active row in `ielectro_admin.team` (`Admin\Access`).
+- Www HTML is public; `views/track` and `stats` are listed as public APIs.
+- CSRF (`csrf_token` cookie, `X-CSRF-Token` header) on mutating authenticated calls.
+- Rate limits on login, recovery, and careers apply.
+
+Public Account routes: `oauth/google`, `recovery`, `recovery/reset`, `availability`, plus Nesh’s built-in `POST /api/sessions` and `POST /api/user`.
+
+---
+
+## Data model
+
+`www` has no schema. Admin joins Account users for names. Dyscover never stores passwords.
+
+```mermaid
+erDiagram
+  ACCOUNTS ||--o{ ACCOUNT_SESSIONS : issues
+  ACCOUNTS ||--o| DYSCOVER_USERS : "account_id"
+  ACCOUNTS ||--o| ADMIN_TEAM : "staff"
+  DYSCOVER_USERS ||--o{ POSTS : publishes
+  DYSCOVER_USERS ||--o{ ARTICLES : writes
+  DYSCOVER_USERS ||--o{ FOLLOWS : follows
+  ADMIN_TEAM ||--o{ NEWS : edits
+  ADMIN_TEAM ||--o{ CAREERS : edits
+
+  ACCOUNTS {
+    int id
+    string username
+    string password_hash
+  }
+  ACCOUNT_SESSIONS {
+    string token_hash
+    datetime expires_at
+  }
+  DYSCOVER_USERS {
+    int account_id
+    string role
+    string status
+  }
+  ADMIN_TEAM {
+    int account_id
+    string status
+  }
+```
+
+| App | Database | SQL |
+| --- | --- | --- |
+| Account | `ielectro_account` | `account/database/schema/` |
+| Dyscover | `ielectro_dyscover` | `dyscover/database/schema/` |
+| Admin | `ielectro_admin` | `admin/database/schema/` |
+
+Bootstrap files start with `CREATE DATABASE` in `0-bootstrap.sql`. The graphic installer at the site root runs them (`Database::install` skips a schema that already has tables). `Nesh\Query` uses mysqli prepared statements. `Nesh\Schema` quotes table names so Admin can join across schemas.
+
+**Backup.** `Nesh\Backup` writes `{app}/database/backup/YYYY-MM-DD.sql` once per day and drops dumps older than seven days. Files are gitignored; Apache returns 403 for `/database`.
+
+---
+
+## Nesh
+
+Nesh is not a public app. Every vhost loads `nesh/src/autoload.php`.
+
+```mermaid
+classDiagram
+  class App {
+    +api Api
+    +pages Pages
+    +run()
+  }
+  class Api {
+    +publicApi
+    +handle()
+  }
+  class Pages {
+    +render()
+  }
+  class Identity {
+    +required()
+  }
+  class Database {
+    +install()
+  }
+  class Backup {
+    +daily()
+  }
+  class AiClient {
+    +chat()
+  }
+  App --> Api
+  App --> Pages
+  Api --> Identity
+  App --> Database
+  App --> Backup
+```
+
+Boot order: constants in `autoload.php` → autoload `Nesh\*` from `nesh/src` and `nesh/installer` → `Request::start()` (errors off, security headers, CORS, CSRF cookie) → four `App` instances → `App::run()`. Schemas are applied by the graphic installer, not on every HTTP request.
+
+**Pages.** `https://{app}/{page}` → `pages/{page}.html`. Missing files return HTML 404. Nesh injects charset, viewport, favicon, canonical URL, `og:image`, page CSS/JS, and suffixes the title with the app name.
+
+Also: `AiClient` / `AiConfig` (OpenAI-compatible chat), GD / FFmpeg / Dompdf helpers, shared `nesh/scripts` in `nesh/scripts/nesh.js`.
+
+---
+
+## HTTP API
+
+```
+METHOD /api/{service}/{method?}/{id?}
+```
+
+Examples: `GET /api/posts`, `POST /api/sessions`, `GET /api/user/2`.
+
+1. `{service}` → `{app}/api/{service}.php` (plural may fall back to singular).
+2. Class `{Folder}\{Service}` (e.g. `Dyscover\Posts`).
+3. Segment 2 is the method (`index` if missing, numeric, or a UUID).
+4. Non-null return → JSON `{ success, … }`. Errors: `{ "success": false, "message": "…" }`.
+
+Unless listed on `$app->api->publicApi` (set in each `index.php`):
+
+- **GET** needs a session.
+- **POST / PUT / PATCH / DELETE** need session **and** CSRF.
+
+| App | `publicApi` |
+| --- | --- |
+| Www | `views/track`, `stats` |
+| Account | `oauth/google`, `recovery`, `recovery/reset`, `availability` |
+| Dyscover | *(empty)* |
+| Admin | `news`, `careers`, `careers/apply`, `team`, `apps` |
+
+**Dyscover (selected):** `posts`, `feed`, `explore`, `articles`, `article-content`, `article-generate`, `inbox`, `users`, `tags`, `templates`, `creator-center`, `activity`, `reports`, `moderation`. Article placement rules live in the graphic editor (`place.js`), not in SQL.
+
+---
+
+## Repository layout
+
+```
+ielectro/
+├── nesh/          framework (PHP, installer, icons, vendor)
+├── account/       identity app
+├── dyscover/      social / articles app
+├── admin/         staff app
+├── www/           public site
+└── index.php      bootstrap manager (login + per-app init)
+```
+
+Every application folder:
+
+| Path | Role |
+| --- | --- |
+| `index.php` | boot Nesh, set `publicApi`, `run()` |
+| `pages/` | `{name}.html` templates |
+| `scripts/{name}/index.js` | page module |
+| `styles/{name}/index.css` | page stylesheet |
+| `api/` | PHP classes in the app namespace |
+| `database/schema/` | numbered `.sql` bootstrap files |
+| `database/backup/` | daily SQL dumps (not served, not committed) |
+| `assets/` | brand files and user uploads |
+| `assets/screenshots/` | numbered page screenshots (`01.png`, `02.png`, …) |
+| `version.env` | app version only (developer-set; used for asset `?v=`) |
+| `init.boot` | initialization marker (gitignored; created by the installer) |
+
+Nesh: `nesh/src/`, `nesh/installer/`, `nesh/scripts/`, `nesh/styles/`, `nesh/icon/`, `nesh/vendor/` (Dompdf, MaxMind DB). Browsers load ES modules; there is no npm build.
+
+---
+
+## Setup
+
+**Requirements:** PHP 8.1+ (`mysqli`, `curl`, `gd`, `mbstring`, `fileinfo`, `openssl`), MySQL 8 / MariaDB 10.4+, Apache `mod_rewrite`. Optional: FFmpeg (Dyscover media), local or remote LLM.
+
+There is no terminal installer. Setup is the graphic form at the **site root** (`index.php`). A clone of this repository is the project tree; packing a hosting zip is a local `export` CLI (not committed). Placeholder `.gitkeep` files keep empty directories; the graphic installer removes them when an app is initialized.
+
+**Install.** Copy `config.env.example` to `config.env` and set `INSTALLER_USER` / `INSTALLER_PASSWORD` (required for the bootstrap manager). Point Apache at the repository root and open it in a browser. Sign in, then initialize each app that is missing `{app}/init.boot`. The same generic bootstrap writes `config.env`, applies that app’s SQL from `{app}/database/schema/` (www has none), and creates `{app}/init.boot`. Version numbers come from `{app}/version.env` and are display-only. When every app has `init.boot`, `/` redirects to **www**. Replacing a single app folder without `init.boot` (new `version.env` in the release) lets you initialize only that app.
+
+| Server | Routing | Typical URL |
+| --- | --- | --- |
+| **iElectro domain** | subdomains | `https://www.ielectro.com` |
+| **Localhost** | subfolders | `http://localhost/ielectro/www` |
+| **Web Hosting** | subfolders | `https://ielectro.altervista.org/www` |
+
+Production hosts (domain mode):
+
+```text
+127.0.0.1  ielectro.com www.ielectro.com account.ielectro.com admin.ielectro.com dyscover.ielectro.com
+```
+
+Map each subdomain DocumentRoot to `www/`, `account/`, `admin/`, `dyscover/`. Nesh is not a vhost. Localhost and hosting share one DocumentRoot at the repo root; apps live at `/account`, `/admin`, `/dyscover`, `/www`.
+
+**Config.** The installer writes deployment, cookie, database, LLM model, and optional `LLM_API_KEY` into `config.env` (gitignored). It does not overwrite `INSTALLER_USER` / `INSTALLER_PASSWORD`. `nesh/src/autoload.php` still defines the constants; they read `env()` with fallbacks. Copy `config.env.example` for installer credentials and for keys the form does not collect (Google, mail). Do not put secrets in frontend JS. `config.env` and `init.boot` are denied over HTTP.
+
+```
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+MAIL_HOST=
+MAIL_USER=
+MAIL_PASS=
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Blank or JSON 500 | PHP error log (`display_errors` is off) |
+| Login does not follow you across apps | Hosts and `COOKIE_DOMAIN` must share `.ielectro.com` |
+| Cookies never stick on HTTP | `COOKIE_SECURE` expects HTTPS |
+| Empty schema | Delete that app’s `init.boot` and open `/` to initialize only that app |
+| Localhost SSO cookies fail | Use Localhost mode so `COOKIE_DOMAIN` is not `.ielectro.com` |
+| 403 on SQL dumps | `/database` (schema and backups) is blocked on purpose |
+
+---
+
+## Product tour
+
+### Www
+
+| | | |
+| --- | --- | --- |
+| <img src="www/assets/screenshots/01.png" alt="www home" width="260"> | <img src="www/assets/screenshots/02.png" alt="www services" width="260"> | <img src="www/assets/screenshots/03.png" alt="www team" width="260"> |
+| <img src="www/assets/screenshots/04.png" alt="www careers" width="260"> | <img src="www/assets/screenshots/05.png" alt="www news" width="260"> | |
+
+### Account
+
+| | | |
+| --- | --- | --- |
+| <img src="account/assets/screenshots/01.png" alt="account login" width="260"> | <img src="account/assets/screenshots/02.png" alt="account create" width="260"> | <img src="account/assets/screenshots/03.png" alt="account password recovery" width="260"> |
+| <img src="account/assets/screenshots/04.png" alt="account home" width="260"> | <img src="account/assets/screenshots/05.png" alt="account profile" width="260"> | <img src="account/assets/screenshots/06.png" alt="account services" width="260"> |
+| <img src="account/assets/screenshots/07.png" alt="account activity" width="260"> | | |
+
+### Dyscover
+
+| | | |
+| --- | --- | --- |
+| <img src="dyscover/assets/screenshots/01.png" alt="dyscover home" width="260"> | <img src="dyscover/assets/screenshots/02.png" alt="dyscover explore" width="260"> | <img src="dyscover/assets/screenshots/03.png" alt="dyscover inbox" width="260"> |
+| <img src="dyscover/assets/screenshots/04.png" alt="dyscover activity" width="260"> | <img src="dyscover/assets/screenshots/05.png" alt="dyscover users" width="260"> | <img src="dyscover/assets/screenshots/06.png" alt="dyscover creator center" width="260"> |
+| <img src="dyscover/assets/screenshots/07.png" alt="dyscover article" width="260"> | | |
+
+### Admin
+
+| | | |
+| --- | --- | --- |
+| <img src="admin/assets/screenshots/01.png" alt="admin home" width="260"> | <img src="admin/assets/screenshots/02.png" alt="admin news" width="260"> | <img src="admin/assets/screenshots/03.png" alt="admin team" width="260"> |
+| <img src="admin/assets/screenshots/04.png" alt="admin careers" width="260"> | <img src="admin/assets/screenshots/05.png" alt="admin accounts" width="260"> | <img src="admin/assets/screenshots/06.png" alt="admin dyscover" width="260"> |
