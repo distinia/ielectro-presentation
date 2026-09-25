@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="www/assets/brand/logo.png" alt="iElectro" width="88">
+  <img src="logo.png" alt="iElectro" width="88">
 </p>
 
 <h1 align="center">iElectro</h1>
@@ -271,7 +271,7 @@ Every application folder:
 | `database/schema/` | numbered `.sql` bootstrap files |
 | `database/backup/` | daily SQL dumps (not served, not committed) |
 | `assets/` | brand files and user uploads |
-| `assets/screenshots/` | numbered page screenshots (`01.png`, `02.png`, …) |
+| `` | numbered page screenshots (`01.png`, `02.png`, …) |
 | `version.env` | app version only (developer-set; used for asset `?v=`) |
 | `init.boot` | initialization marker (gitignored; created by the installer) |
 
@@ -332,28 +332,28 @@ MAIL_PASS=
 
 | | | |
 | --- | --- | --- |
-| <img src="www/assets/screenshots/01.png" alt="www home" width="260"> | <img src="www/assets/screenshots/02.png" alt="www services" width="260"> | <img src="www/assets/screenshots/03.png" alt="www team" width="260"> |
-| <img src="www/assets/screenshots/04.png" alt="www careers" width="260"> | <img src="www/assets/screenshots/05.png" alt="www news" width="260"> | |
+| <img src="www/01.png" alt="www home" width="260"> | <img src="www/02.png" alt="www services" width="260"> | <img src="www/03.png" alt="www team" width="260"> |
+| <img src="www/04.png" alt="www careers" width="260"> | <img src="www/05.png" alt="www news" width="260"> | |
 
 ### Account
 
 | | | |
 | --- | --- | --- |
-| <img src="account/assets/screenshots/01.png" alt="account login" width="260"> | <img src="account/assets/screenshots/02.png" alt="account create" width="260"> | <img src="account/assets/screenshots/03.png" alt="account password recovery" width="260"> |
-| <img src="account/assets/screenshots/04.png" alt="account home" width="260"> | <img src="account/assets/screenshots/05.png" alt="account profile" width="260"> | <img src="account/assets/screenshots/06.png" alt="account services" width="260"> |
-| <img src="account/assets/screenshots/07.png" alt="account activity" width="260"> | | |
+| <img src="account/01.png" alt="account login" width="260"> | <img src="account/02.png" alt="account create" width="260"> | <img src="account/03.png" alt="account password recovery" width="260"> |
+| <img src="account/04.png" alt="account home" width="260"> | <img src="account/05.png" alt="account profile" width="260"> | <img src="account/06.png" alt="account services" width="260"> |
+| <img src="account/07.png" alt="account activity" width="260"> | | |
 
 ### Dyscover
 
 | | | |
 | --- | --- | --- |
-| <img src="dyscover/assets/screenshots/01.png" alt="dyscover home" width="260"> | <img src="dyscover/assets/screenshots/02.png" alt="dyscover explore" width="260"> | <img src="dyscover/assets/screenshots/03.png" alt="dyscover inbox" width="260"> |
-| <img src="dyscover/assets/screenshots/04.png" alt="dyscover activity" width="260"> | <img src="dyscover/assets/screenshots/05.png" alt="dyscover users" width="260"> | <img src="dyscover/assets/screenshots/06.png" alt="dyscover creator center" width="260"> |
-| <img src="dyscover/assets/screenshots/07.png" alt="dyscover article" width="260"> | | |
+| <img src="dyscover/01.png" alt="dyscover home" width="260"> | <img src="dyscover/02.png" alt="dyscover explore" width="260"> | <img src="dyscover/03.png" alt="dyscover inbox" width="260"> |
+| <img src="dyscover/04.png" alt="dyscover activity" width="260"> | <img src="dyscover/05.png" alt="dyscover users" width="260"> | <img src="dyscover/06.png" alt="dyscover creator center" width="260"> |
+| <img src="dyscover/07.png" alt="dyscover article" width="260"> | | |
 
 ### Admin
 
 | | | |
 | --- | --- | --- |
-| <img src="admin/assets/screenshots/01.png" alt="admin home" width="260"> | <img src="admin/assets/screenshots/02.png" alt="admin news" width="260"> | <img src="admin/assets/screenshots/03.png" alt="admin team" width="260"> |
-| <img src="admin/assets/screenshots/04.png" alt="admin careers" width="260"> | <img src="admin/assets/screenshots/05.png" alt="admin accounts" width="260"> | <img src="admin/assets/screenshots/06.png" alt="admin dyscover" width="260"> |
+| <img src="admin/01.png" alt="admin home" width="260"> | <img src="admin/02.png" alt="admin news" width="260"> | <img src="admin/03.png" alt="admin team" width="260"> |
+| <img src="admin/04.png" alt="admin careers" width="260"> | <img src="admin/05.png" alt="admin accounts" width="260"> | <img src="admin/06.png" alt="admin dyscover" width="260"> |
