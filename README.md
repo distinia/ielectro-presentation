@@ -4,12 +4,7 @@
 
 <h1 align="center">iElectro</h1>
 
-<p align="center">
-  <strong>Privacy-first apps on dedicated hosts, powered by Nesh.</strong><br>
-  One identity. Separate products. Shared PHP framework.
-</p>
-
-This README is a **technical** document: architecture, engineering, and programming. It is not a user manual and not an install guide.
+<p align="center">One identity. Separate products. Shared PHP framework.</p>
 
 **Demo.** Sign in on **Account** with:
 
@@ -29,9 +24,43 @@ iElectro is a small multi-app platform: a public company site, a single sign-on 
 - [Identity & sessions](#identity--sessions)
 - [Data model](#data-model)
 - [Nesh](#nesh)
-- [HTTP API](#http-api)
+- [API REST](#http-api)
 - [Repository layout](#repository-layout)
 - [Product tour](#product-tour)
+
+---
+
+## Product tour
+
+### Www
+
+| | | |
+| --- | --- | --- |
+| <img src="www/01.png" alt="www home" width="260"> | <img src="www/02.png" alt="www services" width="260"> | <img src="www/03.png" alt="www team" width="260"> |
+| <img src="www/04.png" alt="www careers" width="260"> | <img src="www/05.png" alt="www news" width="260"> | |
+
+### Account
+
+| | | |
+| --- | --- | --- |
+| <img src="account/01.png" alt="account login" width="260"> | <img src="account/02.png" alt="account create" width="260"> | <img src="account/03.png" alt="account password recovery" width="260"> |
+| <img src="account/04.png" alt="account home" width="260"> | <img src="account/05.png" alt="account profile" width="260"> | <img src="account/06.png" alt="account services" width="260"> |
+| <img src="account/07.png" alt="account activity" width="260"> | | |
+
+### Dyscover
+
+| | | |
+| --- | --- | --- |
+| <img src="dyscover/01.png" alt="dyscover home" width="260"> | <img src="dyscover/02.png" alt="dyscover explore" width="260"> | <img src="dyscover/03.png" alt="dyscover inbox" width="260"> |
+| <img src="dyscover/04.png" alt="dyscover activity" width="260"> | <img src="dyscover/05.png" alt="dyscover users" width="260"> | <img src="dyscover/06.png" alt="dyscover creator center" width="260"> |
+| <img src="dyscover/07.png" alt="dyscover article" width="260"> | | |
+
+### Admin
+
+| | | |
+| --- | --- | --- |
+| <img src="admin/01.png" alt="admin home" width="260"> | <img src="admin/02.png" alt="admin news" width="260"> | <img src="admin/03.png" alt="admin team" width="260"> |
+| <img src="admin/04.png" alt="admin careers" width="260"> | <img src="admin/05.png" alt="admin accounts" width="260"> | <img src="admin/06.png" alt="admin dyscover" width="260"> |
 
 ---
 
@@ -216,7 +245,7 @@ Also: `AiClient` / `AiConfig` (OpenAI-compatible chat), GD / FFmpeg / Dompdf hel
 
 ---
 
-## HTTP API
+## API REST
 
 ```
 METHOD /api/{service}/{method?}/{id?}
@@ -273,37 +302,3 @@ Every application folder:
 | `init.boot` | initialization marker (gitignored; created by the installer) |
 
 Nesh: `nesh/src/`, `nesh/installer/`, `nesh/scripts/`, `nesh/styles/`, `nesh/icon/`, `nesh/vendor/` (Dompdf, MaxMind DB). Browsers load ES modules; there is no npm build.
-
----
-
-## Product tour
-
-### Www
-
-| | | |
-| --- | --- | --- |
-| <img src="www/01.png" alt="www home" width="260"> | <img src="www/02.png" alt="www services" width="260"> | <img src="www/03.png" alt="www team" width="260"> |
-| <img src="www/04.png" alt="www careers" width="260"> | <img src="www/05.png" alt="www news" width="260"> | |
-
-### Account
-
-| | | |
-| --- | --- | --- |
-| <img src="account/01.png" alt="account login" width="260"> | <img src="account/02.png" alt="account create" width="260"> | <img src="account/03.png" alt="account password recovery" width="260"> |
-| <img src="account/04.png" alt="account home" width="260"> | <img src="account/05.png" alt="account profile" width="260"> | <img src="account/06.png" alt="account services" width="260"> |
-| <img src="account/07.png" alt="account activity" width="260"> | | |
-
-### Dyscover
-
-| | | |
-| --- | --- | --- |
-| <img src="dyscover/01.png" alt="dyscover home" width="260"> | <img src="dyscover/02.png" alt="dyscover explore" width="260"> | <img src="dyscover/03.png" alt="dyscover inbox" width="260"> |
-| <img src="dyscover/04.png" alt="dyscover activity" width="260"> | <img src="dyscover/05.png" alt="dyscover users" width="260"> | <img src="dyscover/06.png" alt="dyscover creator center" width="260"> |
-| <img src="dyscover/07.png" alt="dyscover article" width="260"> | | |
-
-### Admin
-
-| | | |
-| --- | --- | --- |
-| <img src="admin/01.png" alt="admin home" width="260"> | <img src="admin/02.png" alt="admin news" width="260"> | <img src="admin/03.png" alt="admin team" width="260"> |
-| <img src="admin/04.png" alt="admin careers" width="260"> | <img src="admin/05.png" alt="admin accounts" width="260"> | <img src="admin/06.png" alt="admin dyscover" width="260"> |
