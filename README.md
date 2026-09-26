@@ -5,25 +5,25 @@
 <h1 align="center">iElectro</h1>
 
 <p align="center">
-  <strong>Privacy-first apps on dedicated subdomains, powered by Nesh.</strong><br>
+  <strong>Privacy-first apps on dedicated hosts, powered by Nesh.</strong><br>
   One identity. Separate products. Shared PHP framework.
 </p>
 
-<p align="center">
-  <a href="https://www.ielectro.com">www</a> ·
-  <a href="https://account.ielectro.com">account</a> ·
-  <a href="https://dyscover.ielectro.com">dyscover</a> ·
-  <a href="https://admin.ielectro.com">admin</a>
-</p>
+This README is a **technical** document: architecture, engineering, and programming. It is not a user manual and not an install guide.
 
-iElectro is a small multi-app platform: a public company site, a single sign-on account, a social/publishing product (Dyscover), and a staff backoffice. Each app is its own Apache vhost. They share a `session_token` cookie on `.ielectro.com` and boot through **Nesh** (`nesh/src`), a PHP 8 framework that maps URLs to pages and `/api/{service}` classes.
+**Demo.** Sign in on **Account** with:
 
-| App | Host | Database |
+- username: `demodemo`
+- password: `demodemo`
+
+iElectro is a small multi-app platform: a public company site, a single sign-on account, a social/publishing product (Dyscover), and a staff backoffice. Each app is its own Apache vhost. They share a `session_token` cookie on a common parent domain and boot through **Nesh** (`nesh/src`), a PHP 8 framework that maps URLs to pages and `/api/{service}` classes.
+
+| App | Role | Database |
 | --- | --- | --- |
-| **Www** | [www.ielectro.com](https://www.ielectro.com) | none (reads Admin APIs) |
-| **Account** | [account.ielectro.com](https://account.ielectro.com) | `ielectro_account` |
-| **Dyscover** | [dyscover.ielectro.com](https://dyscover.ielectro.com) | `ielectro_dyscover` |
-| **Admin** | [admin.ielectro.com](https://admin.ielectro.com) | `ielectro_admin` |
+| **Www** | Public company site | none (reads Admin APIs) |
+| **Account** | Identity and SSO | `ielectro_account` |
+| **Dyscover** | Social / publishing | `ielectro_dyscover` |
+| **Admin** | Staff backoffice | `ielectro_admin` |
 
 - [Architecture](#architecture)
 - [Identity & sessions](#identity--sessions)
@@ -31,8 +31,6 @@ iElectro is a small multi-app platform: a public company site, a single sign-on 
 - [Nesh](#nesh)
 - [HTTP API](#http-api)
 - [Repository layout](#repository-layout)
-- [Setup](#setup)
-- [Troubleshooting](#troubleshooting)
 - [Product tour](#product-tour)
 
 ---
@@ -47,10 +45,10 @@ flowchart TB
     U[User]
   end
 
-  U --> WWW[www.ielectro.com]
-  U --> ACC[account.ielectro.com]
-  U --> DYS[dyscover.ielectro.com]
-  U --> ADM[admin.ielectro.com]
+  U --> WWW[www]
+  U --> ACC[account]
+  U --> DYS[dyscover]
+  U --> ADM[admin]
 
   WWW --> Nesh
   ACC --> Nesh
@@ -106,7 +104,7 @@ sequenceDiagram
 
   B->>A: POST /api/sessions (or Google OAuth)
   A->>DB: store SHA-256(session token)
-  A-->>B: Set-Cookie session_token (.ielectro.com, HttpOnly, Secure, SameSite=Lax)
+  A-->>B: Set-Cookie session_token (parent domain, HttpOnly, Secure, SameSite=Lax)
 
   B->>D: GET or POST /api/…
   D->>DB: Identity lookup (unrevoked, unexpired)
@@ -114,7 +112,7 @@ sequenceDiagram
   D-->>B: JSON or HTML
 ```
 
-- Cookie domain: `COOKIE_DOMAIN` (typically `.ielectro.com`).
+- Cookie domain: `COOKIE_DOMAIN` (shared parent of the four apps).
 - `Identity::required()` → JSON 401 on protected APIs.
 - Dyscover profiles: `dyscover_users.account_id` with role `user` / `moderator` and status `active` / `suspended` / `banned`.
 - Admin HTML and staff APIs: active row in `ielectro_admin.team` (`Admin\Access`).
@@ -212,7 +210,7 @@ classDiagram
 
 Boot order: constants in `autoload.php` → autoload `Nesh\*` from `nesh/src` and `nesh/installer` → `Request::start()` (errors off, security headers, CORS, CSRF cookie) → four `App` instances → `App::run()`. Schemas are applied by the graphic installer, not on every HTTP request.
 
-**Pages.** `https://{app}/{page}` → `pages/{page}.html`. Missing files return HTML 404. Nesh injects charset, viewport, favicon, canonical URL, `og:image`, page CSS/JS, and suffixes the title with the app name.
+**Pages.** `/{page}` on an app vhost → `pages/{page}.html`. Missing files return HTML 404. Nesh injects charset, viewport, favicon, canonical URL, `og:image`, page CSS/JS, and suffixes the title with the app name.
 
 Also: `AiClient` / `AiConfig` (OpenAI-compatible chat), GD / FFmpeg / Dompdf helpers, shared `nesh/scripts` in `nesh/scripts/nesh.js`.
 
@@ -271,58 +269,10 @@ Every application folder:
 | `database/schema/` | numbered `.sql` bootstrap files |
 | `database/backup/` | daily SQL dumps (not served, not committed) |
 | `assets/` | brand files and user uploads |
-| `` | numbered page screenshots (`01.png`, `02.png`, …) |
 | `version.env` | app version only (developer-set; used for asset `?v=`) |
 | `init.boot` | initialization marker (gitignored; created by the installer) |
 
 Nesh: `nesh/src/`, `nesh/installer/`, `nesh/scripts/`, `nesh/styles/`, `nesh/icon/`, `nesh/vendor/` (Dompdf, MaxMind DB). Browsers load ES modules; there is no npm build.
-
----
-
-## Setup
-
-**Requirements:** PHP 8.1+ (`mysqli`, `curl`, `gd`, `mbstring`, `fileinfo`, `openssl`), MySQL 8 / MariaDB 10.4+, Apache `mod_rewrite`. Optional: FFmpeg (Dyscover media), local or remote LLM.
-
-There is no terminal installer. Setup is the graphic form at the **site root** (`index.php`). A clone of this repository is the project tree; packing a hosting zip is a local `export` CLI (not committed). Placeholder `.gitkeep` files keep empty directories; the graphic installer removes them when an app is initialized.
-
-**Install.** Copy `config.env.example` to `config.env` and set `INSTALLER_USER` / `INSTALLER_PASSWORD` (required for the bootstrap manager). Point Apache at the repository root and open it in a browser. Sign in, then initialize each app that is missing `{app}/init.boot`. The same generic bootstrap writes `config.env`, applies that app’s SQL from `{app}/database/schema/` (www has none), and creates `{app}/init.boot`. Version numbers come from `{app}/version.env` and are display-only. When every app has `init.boot`, `/` redirects to **www**. Replacing a single app folder without `init.boot` (new `version.env` in the release) lets you initialize only that app.
-
-| Server | Routing | Typical URL |
-| --- | --- | --- |
-| **iElectro domain** | subdomains | `https://www.ielectro.com` |
-| **Localhost** | subfolders | `http://localhost/ielectro/www` |
-| **Web Hosting** | subfolders | `https://ielectro.altervista.org/www` |
-
-Production hosts (domain mode):
-
-```text
-127.0.0.1  ielectro.com www.ielectro.com account.ielectro.com admin.ielectro.com dyscover.ielectro.com
-```
-
-Map each subdomain DocumentRoot to `www/`, `account/`, `admin/`, `dyscover/`. Nesh is not a vhost. Localhost and hosting share one DocumentRoot at the repo root; apps live at `/account`, `/admin`, `/dyscover`, `/www`.
-
-**Config.** The installer writes deployment, cookie, database, LLM model, and optional `LLM_API_KEY` into `config.env` (gitignored). It does not overwrite `INSTALLER_USER` / `INSTALLER_PASSWORD`. `nesh/src/autoload.php` still defines the constants; they read `env()` with fallbacks. Copy `config.env.example` for installer credentials and for keys the form does not collect (Google, mail). Do not put secrets in frontend JS. `config.env` and `init.boot` are denied over HTTP.
-
-```
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-MAIL_HOST=
-MAIL_USER=
-MAIL_PASS=
-```
-
----
-
-## Troubleshooting
-
-| Symptom | What to check |
-| --- | --- |
-| Blank or JSON 500 | PHP error log (`display_errors` is off) |
-| Login does not follow you across apps | Hosts and `COOKIE_DOMAIN` must share `.ielectro.com` |
-| Cookies never stick on HTTP | `COOKIE_SECURE` expects HTTPS |
-| Empty schema | Delete that app’s `init.boot` and open `/` to initialize only that app |
-| Localhost SSO cookies fail | Use Localhost mode so `COOKIE_DOMAIN` is not `.ielectro.com` |
-| 403 on SQL dumps | `/database` (schema and backups) is blocked on purpose |
 
 ---
 
