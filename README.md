@@ -10,9 +10,9 @@
 Visit [the site](https://ielectro.altervista.org) and try the **demo.** Sign in on **Account** to use **Dyscover**:
 
 - username: `demodemo`
-- password: `demodemo`
+- password: `demodemo`  
 
-iElectro is a small multi-app platform: a public company site, a single sign-on account, a social/publishing product (Dyscover), and a staff backoffice. Each app is its own Apache vhost. They share a `session_token` cookie on a common parent domain and boot through **Nesh** (`nesh/src`), a PHP 8 framework that maps URLs to pages and `/api/{service}` classes.
+iElectro is a multi-app platform: a public company site, a single sign-on account, a social/publishing product (Dyscover), and a staff backoffice. Each app is its own Apache vhost. They share a `session_token` cookie on a common parent domain and boot through **Nesh** (`nesh/src`), a PHP 8 framework that maps URLs to pages and `/api/{service}` classes.
 
 | App | Role | Database |
 | --- | --- | --- |
