@@ -6,7 +6,8 @@
 
 <p align="center">One identity. Different products. Shared framework.</p>
 
-**Demo.** Sign in on **Account** with:
+
+Visit [the site](https://ielectro.altervista.org) and try the **demo.** Sign in on **Account** to use **Dyscover**:
 
 - username: `demodemo`
 - password: `demodemo`
