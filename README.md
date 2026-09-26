@@ -4,7 +4,7 @@
 
 <h1 align="center">iElectro</h1>
 
-<p align="center">One identity. Separate products. Shared PHP framework.</p>
+<p align="center">One identity. Different products. Shared framework.</p>
 
 **Demo.** Sign in on **Account** with:
 
